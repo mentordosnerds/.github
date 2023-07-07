@@ -36,7 +36,7 @@ jobs:
     - id: set-matrix 
       name: Generate Matrix from File list
       run: |
-        echo "matrix=$(cat matrix.json)" >> $GITHUB_ENV
+        echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
         
   sync:
     needs: set-matrix
