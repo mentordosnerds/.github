@@ -34,7 +34,7 @@ jobs:
       run: |
         # Wrap the matrix.txt content in brackets to make it a valid json array
         echo "[ $(cat matrix.txt) ]" | sed 's/, ]/ ]/' > matrix.json
-        echo "matrix=$(jq -c . matrix.json)" >> $GITHUB_ENV
+        echo "matrix=$(jq -c . matrix.json)" >> $GITHUB_OUTPUT
         
   sync:
     runs-on: ubuntu-latest
@@ -50,4 +50,4 @@ jobs:
         downstream_repo: ${{ matrix.downstreamRepo }}
         upstream_branch: ${{ matrix.defaultBranch }}
         downstream_branch: ${{ matrix.defaultBranch }}
-        token: ${{ env.WORKFLOW_TOKEN }}
+        token: ${{ env.GITHUB_TOKEN }}
