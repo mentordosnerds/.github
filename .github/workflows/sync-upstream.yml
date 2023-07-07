@@ -4,9 +4,6 @@ on:
   workflow_dispatch:
   schedule:
   - cron: "0 9 * * 1"
-  
-env:
-  WORKFLOW_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
 
 jobs:
   set-matrix:
@@ -52,4 +49,4 @@ jobs:
         downstream_repo: ${{ matrix.downstreamRepo }}
         upstream_branch: ${{ matrix.defaultBranch }}
         downstream_branch: ${{ matrix.defaultBranch }}
-        token: ${{ env.WORKFLOW_TOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}
