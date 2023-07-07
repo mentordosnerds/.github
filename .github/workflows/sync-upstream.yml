@@ -16,7 +16,8 @@ jobs:
     - name: Get Forked Repos
       id: get-repos
       run: |
-        curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/orgs/mentordosnerds/repos?type=forks" > repos.json
+        ORG_NAME=$(echo $GITHUB_REPOSITORY | cut -d '/' -f 1)
+        curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/orgs/$ORG_NAME/repos?type=forks" > repos.json
     - name: Get Parent Repos
       id: get-parents
       run: |
