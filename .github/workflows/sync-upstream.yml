@@ -14,12 +14,9 @@ jobs:
     steps:
     - name: mentordosnerds/cloudflare-email
       uses: dchourasia/sync-upstream-repo@1.01
-      env:
-        UPSTREAM_REPO: "https://github.com/Sh4yy/cloudflare-email"
-        DOWNSTREAM_REPO: "https://github.com/mentordosnerds/cloudflare-email"
       with:
-        upstream_repo: ${{ env.UPSTREAM_REPO }}
-        downstream_repo: ${{ env.DOWNSTREAM_REPO }}
+        upstream_repo: "https://github.com/Sh4yy/cloudflare-email.git"
+        downstream_repo: "https://github.com/mentordosnerds/cloudflare-email.git"
         upstream_branch: main
         downstream_branch: main
         token: ${{ env.WORKFLOW_TOKEN }}
