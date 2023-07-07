@@ -1,0 +1,19 @@
+name: Sync Upstream-Downstream
+
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: "0 9 * * 1"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - name: mentordosnerds/cloudflare-email
+      uses: dchourasia/sync-upstream-repo@1.01
+      with:
+        upstream_repo: Sh4yy/cloudflare-email
+        upstream_branch: main
+        downstream_repo: mentordosnerds/cloudflare-email
+        downstream_branch: main
+        token: ${{ secrets.GITHUB_TOKEN }}
