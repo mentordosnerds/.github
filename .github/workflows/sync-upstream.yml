@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: mentordosnerds/cloudflare-email
-      uses: dabreadman/sync-upstream-repo@v1.3.0
+      uses: dchourasia/sync-upstream-repo@1.01
       with:
         upstream_repo: "https://github.com/Sh4yy/cloudflare-email"
         downstream_repo: "https://github.com/mentordosnerds/cloudflare-email"
