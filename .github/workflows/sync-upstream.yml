@@ -20,10 +20,18 @@ jobs:
       id: get-repos
       run: |
         curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/orgs/mentordosnerds/repos?type=forks" > repos.json
+    - name: Get Parent Repos
+      id: get-parents
+      run: |
+        jq -r '.[] | "\(.full_name) \(.clone_url) \(.url)"' repos.json | while read full_name clone url; do
+          parent=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $url | jq -r '.parent.clone_url')
+          echo "$full_name $clone $parent" >> matrix.txt
+        done
     - id: set-matrix 
       name: Generate Matrix from File list
       run: |
-        echo "::set-output name=matrix::$(jq -r '[.[] | {fileName: .name, filePath: .clone_url, upstreamRepo: .parent.clone_url}]' repos.json)"
+        jq -sR '[split("\n")[:-1][] | {name: .[0], downstreamRepo: .[1], upstreamRepo: .[2]}]' matrix.txt > matrix.json
+        echo "matrix=$(jq -c . matrix.json)" >> $GITHUB_OUTPUT
         
   sync:
     runs-on: ubuntu-latest
@@ -36,7 +44,7 @@ jobs:
       uses: dchourasia/sync-upstream-repo@1.01
       with:
         upstream_repo: ${{ matrix.upstreamRepo }}
-        downstream_repo: ${{ matrix.filePath }}
+        downstream_repo: ${{ matrix.downstreamRepo }}
         upstream_branch: main
         downstream_branch: main
-        token: ${{ env.GITHUB_TOKEN }}
+        token: ${{ env.WORKFLOW_TOKEN }}
