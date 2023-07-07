@@ -4,16 +4,19 @@ on:
   workflow_dispatch:
   schedule:
   - cron: "0 9 * * 1"
+  
+env:
+  WORKFLOW_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
     - name: mentordosnerds/cloudflare-email
-      uses: dchourasia/sync-upstream-repo@1.01
+      uses: dchourasia/sync-upstream-repo@v1.3.0
       with:
-        upstream_repo: Sh4yy/cloudflare-email
+        upstream_repo: "https://github.com/Sh4yy/cloudflare-email"
+        downstream_repo: "https://github.com/mentordosnerds/cloudflare-email"
         upstream_branch: main
-        downstream_repo: mentordosnerds/cloudflare-email
         downstream_branch: main
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ env.WORKFLOW_TOKEN }}
