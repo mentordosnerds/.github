@@ -23,20 +23,18 @@ jobs:
     - name: Get Parent Repos
       id: get-parents
       run: |
-        echo '[' > matrix.json
         jq -r '.[] | "\(.full_name) \(.clone_url) \(.url)"' repos.json | while read full_name clone url; do
           repoInfo=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $url)
           parent=$(echo $repoInfo | jq -r '.parent.clone_url')
           default_branch=$(echo $repoInfo | jq -r '.default_branch')
-          echo "{\"name\":\"$full_name\", \"downstreamRepo\":\"$clone\", \"upstreamRepo\":\"$parent\", \"defaultBranch\":\"$default_branch\"}," >> matrix.json
+          echo "{\"name\":\"$full_name\", \"downstreamRepo\":\"$clone\", \"upstreamRepo\":\"$parent\", \"defaultBranch\":\"$default_branch\"}," >> matrix.txt
         done
-        # Remove the trailing comma and close the JSON array
-        sed -i '$ s/.$//' matrix.json
-        echo ']' >> matrix.json
     - id: set-matrix 
       name: Generate Matrix from File list
       run: |
-        echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+        # Wrap the matrix.txt content in brackets to make it a valid json array and prepend it with 'include' field
+        echo "{\"include\": [ $(cat matrix.txt) ]}" | sed 's/, ]/ ]/' > matrix.json
+        echo "matrix=$(jq -c . matrix.json)" >> $GITHUB_OUTPUT
         
   sync:
     needs: set-matrix
@@ -54,4 +52,4 @@ jobs:
         downstream_repo: ${{ matrix.downstreamRepo }}
         upstream_branch: ${{ matrix.defaultBranch }}
         downstream_branch: ${{ matrix.defaultBranch }}
-        token: ${{ env.GITHUB_TOKEN }}
+        token: ${{ env.WORKFLOW_TOKEN }}
