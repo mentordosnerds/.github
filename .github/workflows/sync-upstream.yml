@@ -9,14 +9,34 @@ env:
   WORKFLOW_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
 
 jobs:
+  get-forked-repos:
+    runs-on: ubuntu-latest
+    
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+    - name: Get Forked Repos
+      id: get-repos
+      run: |
+        curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/orgs/mentordosnerds/repos?type=forks" > repos.json
+    - id: set-matrix 
+      name: Generate Matrix from File list
+      run: |
+        echo "::set-output name=matrix::$(jq -r '[.[] | {fileName: .name, filePath: .clone_url, upstreamRepo: .parent.clone_url}]' repos.json)"
+        
   sync:
     runs-on: ubuntu-latest
+    
+    strategy:
+      matrix: ${{fromJson(needs.get-forked-repos.outputs.matrix)}}
+      
     steps:
-    - name: mentordosnerds/cloudflare-email
+    - name: Sync Repo
       uses: dchourasia/sync-upstream-repo@1.01
       with:
-        upstream_repo: "https://github.com/Sh4yy/cloudflare-email.git"
-        downstream_repo: "https://github.com/mentordosnerds/cloudflare-email.git"
+        upstream_repo: ${{ matrix.upstreamRepo }}
+        downstream_repo: ${{ matrix.filePath }}
         upstream_branch: main
         downstream_branch: main
-        token: ${{ env.WORKFLOW_TOKEN }}
+        token: ${{ env.GITHUB_TOKEN }}
