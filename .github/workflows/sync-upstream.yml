@@ -9,7 +9,7 @@ env:
   WORKFLOW_TOKEN: ${{ secrets.WORKFLOW_TOKEN }}
 
 jobs:
-  get-forked-repos:
+  set-matrix:
     runs-on: ubuntu-latest
     
     outputs:
@@ -37,13 +37,15 @@ jobs:
         echo "matrix=$(jq -c . matrix.json)" >> $GITHUB_OUTPUT
         
   sync:
+    needs: set-matrix
+    
     runs-on: ubuntu-latest
     
     strategy:
-      matrix: ${{fromJson(needs.get-forked-repos.outputs.matrix)}}
+      matrix: ${{ fromJson(needs.set-matrix.outputs.matrix) }}
       
     steps:
-    - name: Sync Repo
+    - name: Sync Repo ${{ matrix.name }}
       uses: dchourasia/sync-upstream-repo@1.01
       with:
         upstream_repo: ${{ matrix.upstreamRepo }}
