@@ -44,6 +44,8 @@ jobs:
               TAG=${{ inputs.ref_name }}
           fi
           
+          echo ${{ github.repository }}:$TAG
+          
           docker pull $IMAGE:latest || :
           docker pull $IMAGE:$TAG || :
           
