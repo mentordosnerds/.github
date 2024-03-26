@@ -2,23 +2,6 @@ name: Docker Build & Push to GitHub Container Registry
 
 on:
   workflow_call:
-    inputs:
-      actor:
-        type: string
-        required: true
-        description: 'The actor that triggered the workflow'
-      repository:
-        type: string
-        required: true
-        description: 'The repository that triggered the workflow'
-      ref_type:
-        type: string
-        required: true
-        description: 'The type of the reference'
-      ref_name:
-        type: string
-        required: true
-        description: 'The name of the reference'
 
 jobs:
   build:
@@ -31,21 +14,18 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ inputs.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker Build & Push
         env:
-          IMAGE: ghcr.io/${{ inputs.repository }}
+          IMAGE: ghcr.io/${{ github.repository }}
         run: |
-          if [ "${{ inputs.ref_name }}" = "main" ]; then
+          if [ "${{ github.ref_name }}" = "main" ]; then
               TAG=latest
           else
-              TAG=${{ inputs.ref_name }}
+              TAG=${{ github.ref_name }}
           fi
-          
-          echo "Test: ${{ github.repository }}:$TAG ${{ github.repository_owner }}"
-          echo "Test: ${{ github.ref_type }}"
           
           echo "📌 Warming up cache layers for $IMAGE:$TAG..."
           docker pull --quiet $IMAGE:latest || :
@@ -54,9 +34,9 @@ jobs:
           echo "📌 Building $IMAGE:$TAG..."
           docker build --quiet --pull --cache-from="$IMAGE:$TAG" --cache-from="$IMAGE:$TAG" --tag $IMAGE:$TAG .
           
-          if [[ "${{ inputs.ref_name }}" = "main" || "${{ inputs.ref_name }}" = "master" ]]; then
+          if [[ "${{ github.ref_name }}" = "main" || "${{ github.ref_name }}" = "master" ]]; then
               docker tag $IMAGE:$TAG $IMAGE:latest
           fi
           
           echo "📌 Pushing $IMAGE..."
-          docker push $IMAGE
+          docker push --quiet $IMAGE
