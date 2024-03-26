@@ -21,11 +21,7 @@ jobs:
         env:
           IMAGE: ghcr.io/${{ github.repository }}
         run: |
-          if [ "${{ github.ref_name }}" = "main" ]; then
-              TAG=latest
-          else
-              TAG=${{ github.ref_name }}
-          fi
+          TAG=${{ github.ref_name }}
           
           echo "📌 Warming up cache layers for $IMAGE:$TAG..."
           docker pull --quiet $IMAGE:latest || :
