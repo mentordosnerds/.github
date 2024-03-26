@@ -1,0 +1,44 @@
+name: Docker Build & Push to GitHub Container Registry
+
+on:
+  workflow_call:
+    inputs:
+      actor:
+        type: string
+        required: true
+        description: 'The actor that triggered the workflow'
+      repository:
+        type: string
+        required: true
+        description: 'The repository that triggered the workflow'
+      ref_type:
+        type: string
+        required: true
+        description: 'The type of the reference'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ inputs.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker Build & Push
+        env:
+          IMAGE: ghcr.io/${{ inputs.repository }}
+        run: |
+          docker pull $IMAGE:latest || :
+          docker build --pull --cache-from="$IMAGE" --tag $IMAGE:latest .
+          
+          if [ "${{ inputs.ref_type }}" = "tag" ]; then
+              docker tag $IMAGE $IMAGE:${{ github.ref_name }}
+          fi
+          
+          docker push $IMAGE
