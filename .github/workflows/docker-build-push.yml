@@ -47,13 +47,16 @@ jobs:
           echo "Test: ${{ github.repository }}:$TAG ${{ github.repository_owner }}"
           echo "Test: ${{ github.ref_type }}"
           
-          docker pull $IMAGE:latest || :
-          docker pull $IMAGE:$TAG || :
+          echo "📌 Warming up cache layers for $IMAGE:$TAG..."
+          docker pull --quiet $IMAGE:latest || :
+          docker pull --quiet $IMAGE:$TAG || :
           
-          docker build --pull --cache-from="$IMAGE:$TAG" --cache-from="$IMAGE:$TAG" --tag $IMAGE:$TAG .
+          echo "📌 Building $IMAGE:$TAG..."
+          docker build --quiet --pull --cache-from="$IMAGE:$TAG" --cache-from="$IMAGE:$TAG" --tag $IMAGE:$TAG .
           
           if [[ "${{ inputs.ref_name }}" = "main" || "${{ inputs.ref_name }}" = "master" ]]; then
               docker tag $IMAGE:$TAG $IMAGE:latest
           fi
           
+          echo "📌 Pushing $IMAGE..."
           docker push $IMAGE
