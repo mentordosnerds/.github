@@ -35,4 +35,4 @@ jobs:
           fi
           
           echo "📌 Pushing $IMAGE..."
-          docker push --quiet $IMAGE
+          docker push --quiet --all-tags $IMAGE:$TAG
