@@ -15,6 +15,10 @@ on:
         type: string
         required: true
         description: 'The type of the reference'
+      ref_name:
+        type: string
+        required: true
+        description: 'The name of the reference'
 
 jobs:
   build:
@@ -34,11 +38,19 @@ jobs:
         env:
           IMAGE: ghcr.io/${{ inputs.repository }}
         run: |
-          docker pull $IMAGE:latest || :
-          docker build --pull --cache-from="$IMAGE" --tag $IMAGE:latest .
+          if [ "${{ inputs.ref_name }}" = "main" ]; then
+              TAG=latest
+          else
+              TAG=${{ inputs.ref_name }}
+          fi
           
-          if [ "${{ inputs.ref_type }}" = "tag" ]; then
-              docker tag $IMAGE $IMAGE:${{ github.ref_name }}
+          docker pull $IMAGE:latest || :
+          docker pull $IMAGE:$TAG || :
+          
+          docker build --pull --cache-from="$IMAGE:$TAG" --cache-from="$IMAGE:$TAG" --tag $IMAGE:$TAG .
+          
+          if [[ "${{ inputs.ref_name }}" = "main" || "${{ inputs.ref_name }}" = "master" ]]; then
+              docker tag $IMAGE:$TAG $IMAGE:latest
           fi
           
           docker push $IMAGE
