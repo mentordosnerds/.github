@@ -24,6 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -31,22 +34,31 @@ jobs:
           username: ${{ inputs.username || github.repository_owner }}
           password: ${{ secrets.DOCKER_PASSWORD || github.token }}
 
-      - name: Docker Build & Push
-        env:
-          IMAGE: ${{ inputs.registry || 'ghcr.io' }}/${{ inputs.repository || github.repository }}
-        run: |
-          TAG=${{ github.ref_name }}
-          
-          echo "📌 Warming up cache layers for $IMAGE:$TAG..."
-          docker pull --quiet $IMAGE:latest || :
-          docker pull --quiet $IMAGE:$TAG || :
-          
-          echo "📌 Building $IMAGE:$TAG..."
-          docker build --cache-from="$IMAGE:latest" --cache-from="$IMAGE:$TAG" --tag $IMAGE:$TAG .
-          
-          if [[ "${{ github.ref_name }}" = "main" || "${{ github.ref_name }}" = "master" ]]; then
-              docker tag $IMAGE:$TAG $IMAGE:latest
-          fi
-          
-          echo "📌 Pushing $IMAGE..."
-          docker push --quiet --all-tags $IMAGE
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          pull: true
+          push: true
+          tags: ${{ inputs.registry || 'ghcr.io' }}/${{ inputs.repository || github.repository }}:${{ github.ref_name }}
+          cache-from: type=registry,ref=${{ inputs.registry || 'ghcr.io' }}/${{ inputs.repository || github.repository }}:latest
+          cache-to: type=inline
+
+#      - name: Docker Build & Push
+#        env:
+#          IMAGE: ${{ inputs.registry || 'ghcr.io' }}/${{ inputs.repository || github.repository }}
+#        run: |
+#          TAG=${{ github.ref_name }}
+#
+#          echo "📌 Warming up cache layers for $IMAGE:$TAG..."
+#          docker pull --quiet $IMAGE:latest || :
+#          docker pull --quiet $IMAGE:$TAG || :
+#
+#          echo "📌 Building $IMAGE:$TAG..."
+#          docker build --cache-from="$IMAGE:latest" --cache-from="$IMAGE:$TAG" --tag $IMAGE:$TAG .
+#
+#          if [[ "${{ github.ref_name }}" = "main" || "${{ github.ref_name }}" = "master" ]]; then
+#              docker tag $IMAGE:$TAG $IMAGE:latest
+#          fi
+#
+#          echo "📌 Pushing $IMAGE..."
+#          docker push --quiet --all-tags $IMAGE
