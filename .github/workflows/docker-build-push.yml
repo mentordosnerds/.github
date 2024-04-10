@@ -28,7 +28,7 @@ jobs:
           docker pull --quiet $IMAGE:$TAG || :
           
           echo "📌 Building $IMAGE:$TAG..."
-          docker build --quiet --pull --cache-from="$IMAGE:$TAG" --cache-from="$IMAGE:$TAG" --tag $IMAGE:$TAG .
+          docker build --cache-from="$IMAGE:latest" --cache-from="$IMAGE:$TAG" --tag $IMAGE:$TAG .
           
           if [[ "${{ github.ref_name }}" = "main" || "${{ github.ref_name }}" = "master" ]]; then
               docker tag $IMAGE:$TAG $IMAGE:latest
