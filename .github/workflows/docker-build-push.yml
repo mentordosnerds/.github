@@ -5,22 +5,18 @@ on:
     inputs:
       registry:
         type: string
-        required: true
         description: 'The registry to push the image to'
         default: ghcr.io
       username:
         type: string
-        required: true
         description: 'The username to login to the registry'
         default: ${{ github.repository_owner }}
       password:
         type: string
-        required: true
         description: 'The password to login to the registry'
         default: ${{ github.token }}
       repository:
         type: string
-        required: true
         description: 'The repository to build and push'
         default: ${{ github.repository }}
 
