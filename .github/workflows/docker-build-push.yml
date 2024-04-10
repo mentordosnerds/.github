@@ -53,7 +53,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-          labels:
+          labels: |
             maintainer=${{ github.actor }}
             org.opencontainers.image.authors=${{ github.actor }}
             org.opencontainers.image.url=${{ github.event.head_commit.url }}
@@ -73,29 +73,10 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
           platforms: linux/amd64,linux/arm64
 
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-#      - name: Docker Build & Push
-#        env:
-#          IMAGE: ${{ inputs.registry || 'ghcr.io' }}/${{ inputs.repository || github.repository }}
-#        run: |
-#          TAG=${{ github.ref_name }}
-#
-#          echo "📌 Warming up cache layers for $IMAGE:$TAG..."
-#          docker pull --quiet $IMAGE:latest || :
-#          docker pull --quiet $IMAGE:$TAG || :
-#
-#          echo "📌 Building $IMAGE:$TAG..."
-#          docker build --cache-from="$IMAGE:latest" --cache-from="$IMAGE:$TAG" --tag $IMAGE:$TAG .
-#
-#          if [[ "${{ github.ref_name }}" = "main" || "${{ github.ref_name }}" = "master" ]]; then
-#              docker tag $IMAGE:$TAG $IMAGE:latest
-#          fi
-#
-#          echo "📌 Pushing $IMAGE..."
-#          docker push --quiet --all-tags $IMAGE
