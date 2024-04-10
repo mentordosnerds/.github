@@ -6,19 +6,15 @@ on:
       registry:
         type: string
         description: 'The registry to push the image to'
-        default: ghcr.io
       username:
         type: string
         description: 'The username to login to the registry'
-        default: ${{ github.repository_owner }}
       password:
         type: string
         description: 'The password to login to the registry'
-        default: ${{ github.token }}
       repository:
         type: string
         description: 'The repository to build and push'
-        default: ${{ github.repository }}
 
 jobs:
   build:
@@ -30,13 +26,13 @@ jobs:
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ inputs.registry }}
-          username: ${{ inputs.username }}
-          password: ${{ inputs.password }}
+          registry: ${{ inputs.registry || 'ghcr.io' }}
+          username: ${{ inputs.username || github.repository_owner }}
+          password: ${{ inputs.password || github.token }}
 
       - name: Docker Build & Push
         env:
-          IMAGE: ${{ inputs.registry }}/${{ inputs.repository }}
+          IMAGE: ${{ inputs.registry || 'ghcr.io' }}/${{ inputs.repository || github.repository }}
         run: |
           TAG=${{ github.ref_name }}
           
