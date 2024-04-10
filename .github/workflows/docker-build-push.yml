@@ -18,6 +18,11 @@ on:
         required: true
         description: 'The password to login to the registry'
         default: ${{ secrets.GITHUB_TOKEN }}
+      repository:
+        type: string
+        required: true
+        description: 'The repository to build and push'
+        default: ${{ github.repository }}
 
 jobs:
   build:
@@ -35,7 +40,7 @@ jobs:
 
       - name: Docker Build & Push
         env:
-          IMAGE: ${{ inputs.registry }}/${{ github.repository }}
+          IMAGE: ${{ inputs.registry }}/${{ inputs.repository }}
         run: |
           TAG=${{ github.ref_name }}
           
