@@ -2,6 +2,10 @@ name: Docker Build & Push to GitHub Container Registry
 
 on:
   workflow_call:
+    secrets:
+      DOCKER_PASSWORD:
+        required: false
+        description: 'The password to login to the registry'
     inputs:
       registry:
         type: string
@@ -9,9 +13,6 @@ on:
       username:
         type: string
         description: 'The username to login to the registry'
-      password:
-        type: string
-        description: 'The password to login to the registry'
       repository:
         type: string
         description: 'The repository to build and push'
@@ -28,7 +29,7 @@ jobs:
         with:
           registry: ${{ inputs.registry || 'ghcr.io' }}
           username: ${{ inputs.username || github.repository_owner }}
-          password: ${{ inputs.password || github.token }}
+          password: ${{ secrets.DOCKER_PASSWORD || github.token }}
 
       - name: Docker Build & Push
         env:
