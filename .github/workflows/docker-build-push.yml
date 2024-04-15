@@ -16,6 +16,9 @@ on:
       repository:
         type: string
         description: 'The repository to build and push'
+      context:
+        type: string
+        description: 'The context to use for the build'
 
 jobs:
   build:
@@ -67,6 +70,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
+          context: ${{ inputs.context || '.' }}
           pull: true
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
