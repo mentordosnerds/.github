@@ -3,6 +3,10 @@ name: Actions Tagger
 on:
   workflow_dispatch:
   push:
+  release:
+    types:
+      - released
+      - edited
   schedule:
   - cron: "0 9 * * 1"
 
