@@ -15,6 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Keep the versions up-to-date
-        uses: Actions-R-Us/actions-tagger@v2.0.3
+        uses: Actions-R-Us/actions-tagger@v2
         with:
           publish_latest_tag: true
