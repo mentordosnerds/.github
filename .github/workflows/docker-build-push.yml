@@ -19,6 +19,9 @@ on:
       context:
         type: string
         description: 'The context to use for the build'
+      build_args:
+        type: string
+        description: 'The build arguments to use for the build'
 
 jobs:
   build:
@@ -79,6 +82,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
           platforms: linux/amd64,linux/arm64
+          build-args: ${{ inputs.build_args || '' }}
 
       - name: Move cache
         run: |
