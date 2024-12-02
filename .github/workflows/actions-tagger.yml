@@ -2,6 +2,7 @@ name: Actions Tagger
 
 on:
   workflow_dispatch:
+  push:
   schedule:
   - cron: "0 9 * * 1"
 
