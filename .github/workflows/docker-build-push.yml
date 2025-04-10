@@ -3,6 +3,9 @@ name: Docker Build & Push to GitHub Container Registry
 on:
   workflow_call:
     secrets:
+      build_args:
+        required: false
+        description: 'The build arguments to use for the build'
       DOCKER_PASSWORD:
         required: false
         description: 'The password to login to the registry'
@@ -82,7 +85,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
           platforms: linux/amd64,linux/arm64
-          build-args: ${{ inputs.build_args || '' }}
+          build-args: ${{ secrets.build_args || inputs.build_args || '' }}
 
       - name: Move cache
         run: |
