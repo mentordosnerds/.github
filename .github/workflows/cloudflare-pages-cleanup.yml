@@ -1,0 +1,79 @@
+name: Cleanup Cloudflare Pages deployments
+
+on:
+  workflow_call:
+    inputs:
+      account-id:
+        required: true
+        type: string
+      project-name:
+        required: true
+        type: string
+      production-keep:
+        default: 2
+        required: false
+        type: number
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Remove stale previews and retain production deployments
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ inputs.account-id }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PAGES_PROJECT: ${{ inputs.project-name }}
+          PRODUCTION_KEEP: ${{ inputs.production-keep }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          wrangler() {
+            npx --yes wrangler@4.127.1 "$@"
+          }
+          remote_branches="$(git ls-remote --heads origin \
+            | awk '{sub("^refs/heads/", "", $2); print $2}' \
+            | jq -Rsc 'split("\n") | map(select(length > 0))')"
+          deployments="$(wrangler pages deployment list --project-name "$PAGES_PROJECT" --json)"
+
+          preview_ids="$(jq -r --argjson remote "$remote_branches" '
+            .[]
+            | select(((.Environment // .environment) | ascii_downcase) == "preview")
+            | select((.Branch // .branch) as $branch | ($remote | index($branch) | not))
+            | (.Id // .id)
+          ' <<<"$deployments" | sort -u)"
+
+          production_ids="$(jq -r --argjson keep "$PRODUCTION_KEEP" '
+            [ .[]
+              | select(((.Environment // .environment) | ascii_downcase) == "production")
+            ]
+            # The Pages API returns deployments newest first; Wrangler preserves that order.
+            | .[$keep:][]
+            | (.Id // .id)
+          ' <<<"$deployments" | sort -u)"
+
+          preview_count="$(wc -w <<<"$preview_ids" | tr -d ' ')"
+          production_count="$(wc -w <<<"$production_ids" | tr -d ' ')"
+          echo "Remote branches: $(jq 'length' <<<"$remote_branches")"
+          echo "Pages deployments returned: $(jq 'length' <<<"$deployments")"
+          echo "Selected $preview_count stale previews and $production_count old production deployments."
+
+          failed=0
+          for deployment_id in $preview_ids $production_ids; do
+            echo "Deleting Pages deployment $deployment_id"
+            if ! wrangler pages deployment delete "$deployment_id" --project-name "$PAGES_PROJECT" --force; then
+              echo "::error::Cloudflare refused to delete deployment $deployment_id"
+              failed=1
+            fi
+          done
+
+          exit "$failed"
