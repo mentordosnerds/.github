@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Remove stale previews and retain production deployments
         env:
@@ -40,17 +40,41 @@ jobs:
           wrangler() {
             npx --yes wrangler@4.127.1 "$@"
           }
-          remote_branches="$(git ls-remote --heads origin \
-            | awk '{sub("^refs/heads/", "", $2); print $2}' \
-            | jq -Rsc 'split("\n") | map(select(length > 0))')"
+          remote_heads="$(git ls-remote --heads origin \
+            | jq -Rn '[inputs | capture("^(?<sha>[0-9a-f]+)\\trefs/heads/(?<branch>.+)$")]
+              | reduce .[] as $head ({}; .[$head.branch] = $head.sha)')"
           deployments="$(wrangler pages deployment list --project-name "$PAGES_PROJECT" --json)"
 
-          preview_ids="$(jq -r --argjson remote "$remote_branches" '
-            .[]
-            | select(((.Environment // .environment) | ascii_downcase) == "preview")
-            | select((.Branch // .branch) as $branch | ($remote | index($branch) | not))
-            | (.Id // .id)
-          ' <<<"$deployments" | sort -u)"
+          preview_selection="$(jq -c --argjson heads "$remote_heads" '
+            reduce (
+              .[]
+              | select(((.Environment // .environment) | ascii_downcase) == "preview")
+              | {
+                  id: (.Id // .id),
+                  branch: (.Branch // .branch // ""),
+                  source: (.Source // .source // "")
+                }
+            ) as $deployment (
+              { current_by_branch: {}, orphan: [], stale: [], duplicate: [] };
+              if ($deployment.branch | length) == 0
+                or ($deployment.source | length) == 0
+                or ($heads[$deployment.branch] // null) == null then
+                .orphan += [$deployment.id]
+              elif ($heads[$deployment.branch] | startswith($deployment.source)) then
+                # The Pages API returns newest first. Keep only the first deployment
+                # for the current SHA of each live branch.
+                if .current_by_branch[$deployment.branch] then
+                  .duplicate += [$deployment.id]
+                else
+                  .current_by_branch[$deployment.branch] = $deployment.id
+                end
+              else
+                .stale += [$deployment.id]
+              end
+            )
+            | . + { ids: (.orphan + .stale + .duplicate) }
+          ' <<<"$deployments")"
+          preview_ids="$(jq -r '.ids[]?' <<<"$preview_selection")"
 
           production_ids="$(jq -r --argjson keep "$PRODUCTION_KEEP" '
             [ .[]
@@ -61,10 +85,11 @@ jobs:
             | (.Id // .id)
           ' <<<"$deployments" | sort -u)"
 
-          preview_count="$(wc -w <<<"$preview_ids" | tr -d ' ')"
+          preview_count="$(jq '.ids | length' <<<"$preview_selection")"
           production_count="$(wc -w <<<"$production_ids" | tr -d ' ')"
-          echo "Remote branches: $(jq 'length' <<<"$remote_branches")"
+          echo "Remote branches: $(jq 'length' <<<"$remote_heads")"
           echo "Pages deployments returned: $(jq 'length' <<<"$deployments")"
+          echo "Selected $(jq '.orphan | length' <<<"$preview_selection") orphan previews, $(jq '.stale | length' <<<"$preview_selection") stale-SHA previews, and $(jq '.duplicate | length' <<<"$preview_selection") duplicate current-SHA previews."
           echo "Selected $preview_count stale previews and $production_count old production deployments."
 
           failed=0
