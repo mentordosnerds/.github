@@ -55,14 +55,19 @@ jobs:
                   source: (.Source // .source // "")
                 }
             ) as $deployment (
-              { current_by_branch: {}, orphan: [], stale: [], duplicate: [], candidates: [] };
+              { current_by_branch: {}, source_less: [], orphan: [], stale: [], duplicate: [], candidates: [] };
               if ($deployment.branch | length) == 0
-                or ($deployment.source | length) == 0
-                or ($heads[$deployment.branch] // null) == null then
+                or ($deployment.source | length) == 0 then
+                .source_less += [$deployment.id]
+                | .candidates += [$deployment + {
+                    reason: "source-less",
+                    snapshot_head: ($heads[$deployment.branch] // "")
+                  }]
+              elif ($heads[$deployment.branch] // null) == null then
                 .orphan += [$deployment.id]
                 | .candidates += [$deployment + {
                     reason: "orphan",
-                    snapshot_head: ($heads[$deployment.branch] // "")
+                    snapshot_head: ""
                   }]
               elif ($heads[$deployment.branch] | startswith($deployment.source)) then
                 # The Pages API returns newest first. Keep only the first deployment
@@ -84,7 +89,7 @@ jobs:
                   }]
               end
             )
-            | . + { ids: (.orphan + .stale + .duplicate) }
+            | . + { ids: (.source_less + .orphan + .stale + .duplicate) }
           ' <<<"$deployments")"
           mapfile -t preview_candidates < <(jq -c '.candidates[]?' <<<"$preview_selection")
 
@@ -101,7 +106,7 @@ jobs:
           production_count="$(wc -w <<<"$production_ids" | tr -d ' ')"
           echo "Remote branches: $(jq 'length' <<<"$remote_heads")"
           echo "Pages deployments returned: $(jq 'length' <<<"$deployments")"
-          echo "Selected $(jq '.orphan | length' <<<"$preview_selection") orphan previews, $(jq '.stale | length' <<<"$preview_selection") stale-SHA previews, and $(jq '.duplicate | length' <<<"$preview_selection") duplicate current-SHA previews."
+          echo "Selected $(jq '.source_less | length' <<<"$preview_selection") source-less previews, $(jq '.orphan | length' <<<"$preview_selection") orphan previews, $(jq '.stale | length' <<<"$preview_selection") stale-SHA previews, and $(jq '.duplicate | length' <<<"$preview_selection") duplicate current-SHA previews."
           echo "Selected $preview_count stale previews and $production_count old production deployments."
 
           failed=0
@@ -118,7 +123,7 @@ jobs:
             if [[ -n "$branch" ]]; then
               current_head="$(git ls-remote --heads origin "refs/heads/$branch" | awk 'NR == 1 { print $1 }')"
               if [[ "$reason" == "orphan" && -n "$current_head" ]] \
-                || [[ "$reason" != "orphan" && "$current_head" != "$snapshot_head" ]]; then
+                || [[ "$reason" != "orphan" && "$reason" != "source-less" && "$current_head" != "$snapshot_head" ]]; then
                 echo "::warning::Skipping Pages deployment $deployment_id because branch $branch changed during cleanup"
                 skipped=$((skipped + 1))
                 continue
