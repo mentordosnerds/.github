@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Remove stale previews and retain production deployments
         env:
@@ -40,17 +40,58 @@ jobs:
           wrangler() {
             npx --yes wrangler@4.127.1 "$@"
           }
-          remote_branches="$(git ls-remote --heads origin \
-            | awk '{sub("^refs/heads/", "", $2); print $2}' \
-            | jq -Rsc 'split("\n") | map(select(length > 0))')"
+          remote_heads="$(git ls-remote --heads origin \
+            | jq -Rn '[inputs | capture("^(?<sha>[0-9a-f]+)\\trefs/heads/(?<branch>.+)$")]
+              | reduce .[] as $head ({}; .[$head.branch] = $head.sha)')"
           deployments="$(wrangler pages deployment list --project-name "$PAGES_PROJECT" --json)"
 
-          preview_ids="$(jq -r --argjson remote "$remote_branches" '
-            .[]
-            | select(((.Environment // .environment) | ascii_downcase) == "preview")
-            | select((.Branch // .branch) as $branch | ($remote | index($branch) | not))
-            | (.Id // .id)
-          ' <<<"$deployments" | sort -u)"
+          preview_selection="$(jq -c --argjson heads "$remote_heads" '
+            reduce (
+              .[]
+              | select(((.Environment // .environment) | ascii_downcase) == "preview")
+              | {
+                  id: (.Id // .id),
+                  branch: (.Branch // .branch // ""),
+                  source: (.Source // .source // "")
+                }
+            ) as $deployment (
+              { current_by_branch: {}, source_less: [], orphan: [], stale: [], duplicate: [], candidates: [] };
+              if ($deployment.branch | length) == 0
+                or ($deployment.source | length) == 0 then
+                .source_less += [$deployment.id]
+                | .candidates += [$deployment + {
+                    reason: "source-less",
+                    snapshot_head: ($heads[$deployment.branch] // "")
+                  }]
+              elif ($heads[$deployment.branch] // null) == null then
+                .orphan += [$deployment.id]
+                | .candidates += [$deployment + {
+                    reason: "orphan",
+                    snapshot_head: ""
+                  }]
+              elif ($heads[$deployment.branch] | startswith($deployment.source)) then
+                # The Pages API returns newest first. Keep only the first deployment
+                # for the current SHA of each live branch.
+                if .current_by_branch[$deployment.branch] then
+                  .duplicate += [$deployment.id]
+                  | .candidates += [$deployment + {
+                      reason: "duplicate",
+                      snapshot_head: $heads[$deployment.branch]
+                    }]
+                else
+                  .current_by_branch[$deployment.branch] = $deployment.id
+                end
+              else
+                .stale += [$deployment.id]
+                | .candidates += [$deployment + {
+                    reason: "stale",
+                    snapshot_head: $heads[$deployment.branch]
+                  }]
+              end
+            )
+            | . + { ids: (.source_less + .orphan + .stale + .duplicate) }
+          ' <<<"$deployments")"
+          mapfile -t preview_candidates < <(jq -c '.candidates[]?' <<<"$preview_selection")
 
           production_ids="$(jq -r --argjson keep "$PRODUCTION_KEEP" '
             [ .[]
@@ -61,19 +102,49 @@ jobs:
             | (.Id // .id)
           ' <<<"$deployments" | sort -u)"
 
-          preview_count="$(wc -w <<<"$preview_ids" | tr -d ' ')"
+          preview_count="$(jq '.ids | length' <<<"$preview_selection")"
           production_count="$(wc -w <<<"$production_ids" | tr -d ' ')"
-          echo "Remote branches: $(jq 'length' <<<"$remote_branches")"
+          echo "Remote branches: $(jq 'length' <<<"$remote_heads")"
           echo "Pages deployments returned: $(jq 'length' <<<"$deployments")"
+          echo "Selected $(jq '.source_less | length' <<<"$preview_selection") source-less previews, $(jq '.orphan | length' <<<"$preview_selection") orphan previews, $(jq '.stale | length' <<<"$preview_selection") stale-SHA previews, and $(jq '.duplicate | length' <<<"$preview_selection") duplicate current-SHA previews."
           echo "Selected $preview_count stale previews and $production_count old production deployments."
 
           failed=0
-          for deployment_id in $preview_ids $production_ids; do
+          skipped=0
+          for candidate in "${preview_candidates[@]}"; do
+            deployment_id="$(jq -r '.id' <<<"$candidate")"
+            branch="$(jq -r '.branch' <<<"$candidate")"
+            reason="$(jq -r '.reason' <<<"$candidate")"
+            snapshot_head="$(jq -r '.snapshot_head' <<<"$candidate")"
+
+            # A branch can advance after the initial snapshot. Re-read its head
+            # immediately before deletion so a fresh Pages deployment is never
+            # removed using an obsolete SHA.
+            if [[ -n "$branch" ]]; then
+              current_head="$(git ls-remote --heads origin "refs/heads/$branch" | awk 'NR == 1 { print $1 }')"
+              if [[ "$reason" == "orphan" && -n "$current_head" ]] \
+                || [[ "$reason" != "orphan" && "$reason" != "source-less" && "$current_head" != "$snapshot_head" ]]; then
+                echo "::warning::Skipping Pages deployment $deployment_id because branch $branch changed during cleanup"
+                skipped=$((skipped + 1))
+                continue
+              fi
+            fi
+
             echo "Deleting Pages deployment $deployment_id"
             if ! wrangler pages deployment delete "$deployment_id" --project-name "$PAGES_PROJECT" --force; then
               echo "::error::Cloudflare refused to delete deployment $deployment_id"
               failed=1
             fi
           done
+
+          for deployment_id in $production_ids; do
+            echo "Deleting Pages deployment $deployment_id"
+            if ! wrangler pages deployment delete "$deployment_id" --project-name "$PAGES_PROJECT" --force; then
+              echo "::error::Cloudflare refused to delete deployment $deployment_id"
+              failed=1
+            fi
+          done
+
+          echo "Skipped $skipped previews whose branch changed during cleanup."
 
           exit "$failed"
