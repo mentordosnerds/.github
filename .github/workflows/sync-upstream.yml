@@ -44,7 +44,7 @@ jobs:
       
     steps:
     - name: Sync Repo ${{ matrix.name }}
-      uses: dchourasia/sync-upstream-repo@1.01
+      uses: dchourasia/sync-upstream-repo@1.05
       with:
         upstream_repo: ${{ matrix.upstreamRepo }}
         downstream_repo: ${{ matrix.downstreamRepo }}
