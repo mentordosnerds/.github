@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest an improvement and explain the need it addresses.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use sanitized examples. Remove secrets, personal information, and private data from text or attachments.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or need
+      description: What are you trying to accomplish, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested improvement
+      description: Describe the behavior or outcome you would like. An implementation plan is optional.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and context
+      description: If useful, describe alternatives, workarounds, or examples that help explain the request.
