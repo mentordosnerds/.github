@@ -1,0 +1,26 @@
+name: Bug report
+description: Report unexpected behavior and help us reproduce it.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use a small, sanitized example. Remove secrets, personal information, and private data from text or attachments.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Describe the steps or provide a minimal example. If you cannot reproduce the problem consistently, describe when it occurs.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: If known, include the affected version or commit and relevant operating system, browser, or tools.
