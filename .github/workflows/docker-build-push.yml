@@ -10,6 +10,10 @@ on:
         required: false
         description: 'The password to login to the registry'
     inputs:
+      runs-on:
+        type: string
+        description: 'JSON runner selector (labels or group); requires a Docker-capable worker'
+        default: '["ubuntu-latest"]'
       registry:
         type: string
         description: 'The registry to push the image to'
@@ -28,7 +32,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
